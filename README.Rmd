@@ -1,0 +1,64 @@
+# Getting and Cleaning Data: Peer Assessment 1
+## Loading  the data
+We start by loading the data
+```{r,cache=TRUE,echo=FALSE}
+trainingX=read.fwf("./UCI HAR Dataset/train/X_train.txt",widths=rep(16,561),header=F)
+trainingY=read.delim("./UCI HAR Dataset/train/Y_train.txt",sep=" ",header=F)
+testX=read.fwf("./UCI HAR Dataset/test/X_test.txt",widths=rep(16,561),header=F)
+testY=read.delim("./UCI HAR Dataset/test/Y_test.txt",sep=" ",header=F)
+subject_train=read.delim("./UCI HAR Dataset/train/subject_train.txt",sep=" ",header=F)[,1]
+subject_test=read.delim("./UCI HAR Dataset/test/subject_test.txt",sep=" ",header=F)[,1]
+activity_labels <-read.table("./UCI HAR Dataset/activity_labels.txt")
+features=read.delim("./UCI HAR Dataset/features.txt",sep=" ",header=F)
+save.image(file="data.Rdata")
+```
+We could also include the inertial signal folder we could do (but on our understanding we judged them superfluos)
+```{r,eval =FALSE,echo=FALSE}
+dir("UCI HAR Dataset/train/Inertial Signals")->bigList
+signA=list()
+for (i in 1:7)
+signa[[i]]=read.delim(paste("./UCI HAR Dataset/train/Inertial Signals/",bigList[i],sep=""),sep=" ",header=F)
+```
+## We merge the training and the test sets to create one data set. 
+```{r, cache=TRUE}
+load("data.Rdata")
+merged.data=rbind(trainingX,testX->Xdata)
+mergedY=rbind(trainingY,testY)
+merged.subject=c(subject_train,subject_test)
+tidy.data=cbind(mergedY,merged.subject,merged.data)
+```
+
+## We then extract only the measurements on the mean and standard deviation for each measurement.
+The following measures are not considered
+```{r,echo=FALSE}
+feat=features[,2]
+toadd1=grep("std",feat)
+toadd2=grep("mean",feat)
+toadd3=grep("Mean",feat)
+features[toadd3,]##not ,mean
+c(toadd1,toadd2)->features.left
+tidy.data.mean.sd=tidy.data[,c(1,2,features.left+2)]
+```
+We end with   `r dim(tidy.data.mean.sd)[2]` variables inclusive of subject Id+activity 
+## We use descriptive activity names to name the activities in the data set
+```{r, echo=FALSE}
+tidy.data[,1]=factor(tidy.data[,1])
+levels(tidy.data[,1])=activity_labels[,2]
+```
+
+## We appropriately labels the data set with descriptive variable names. 
+For clarity due to the length of the names we left the uppercase characters. We report the code to be more explicit
+```{r}
+featureName=gsub("|\\()", "", make.names(features[features.left,2]))
+colnames(tidy.data.mean.sd)=c("activity","subject",featureName)
+write.csv(colnames(tidy.data.mean.sd),file="variables.csv")
+```
+## We finally create a second, independent tidy data set with the average of each variable for each activity and each subject. 
+ 
+```{r,echo =FALSE}
+library(plyr)
+ddply(tidy.data.mean.sd, .(activity, subject),colwise(mean))->z
+dim(z)
+write.table(z, row.names=FALSE,file="tidy.txt") 
+```
+ 
